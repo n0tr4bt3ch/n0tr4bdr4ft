@@ -90,7 +90,7 @@ button{cursor:pointer}button.primary{background:#315b9c;border-color:#4c7ec4}but
   <section class="panel">
    <h2>CSV import requirements</h2>
    <p>Minimum useful columns: <b>Player, Team, Pos, Rank, GP, MIN, FG%, FT%, 3PM, PTS, REB, AST, STL, BLK</b>.</p>
-   <p>For accurate volume-weighted FG% and FT% valuation, also include <b>FGM, FGA, FTM, FTA</b>. Headers are case-insensitive; common ESPN/FantasyPros names are mapped automatically.</p>
+   <p>For accurate volume-weighted FG% and FT% valuation, include <b>FGM, FGA, FTM, FTA</b> when available. If those fields are missing, the app estimates shooting attempts from public 2025–26 NBA rates per minute, scales them to projected minutes, and uses your imported FG%/FT% to estimate makes. These estimates are labeled and are less reliable for rookies or players with changed roles.</p><p class="notice" id="volumeDataStatus">Shooting-volume estimates will load automatically when public historical stats are reachable.</p>
    <p>Optional: <b>Risk</b> (Low/Medium/High), <b>Sleeper</b> (yes/no), <b>Notes</b>. Paste/import only projections you have permission to use.</p>
    <p><a href="https://fantasy.espn.com/basketball/players/projections?leagueId=4487" target="_blank" rel="noopener" style="color:#9fc4ff">ESPN projections</a> · <a href="https://www.fantasypros.com/nba/projections/overall.php" target="_blank" rel="noopener" style="color:#9fc4ff">FantasyPros projections</a> · <a href="https://hashtagbasketball.com/fantasy-basketball-projections" target="_blank" rel="noopener" style="color:#9fc4ff">Hashtag Basketball category projections</a></p>
   </section>
@@ -107,6 +107,7 @@ const SUPABASE_URL='https://ybrwivgvsbnykrhujzqm.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_atFv7eBuKH0plAW4jxdnHQ_-boZiEOR';
 const supabaseClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 let authSession=null, cloudHydrating=false, cloudSaveTimer=null, cloudReady=false;
+let historicalShootingStats=new Map(),historicalStatsReady=false;
 let restoredAtStartup=false;
 const $=id=>document.getElementById(id);
 const playoffSchedule={
@@ -142,8 +143,61 @@ function norm(s){return String(s??'').trim().toLowerCase().replace(/[_-]/g,' ').
 function num(v){if(v===undefined||v===null||String(v).trim()==='')return null;let n=parseFloat(String(v).replace('%','').replace(',',''));if(!Number.isFinite(n))return null;if(String(v).includes('%')&&n>1)n/=100;return n}
 function parseCSV(text){let rows=[],row=[],cell='',q=false;for(let i=0;i<text.length;i++){let c=text[i];if(c==='"'&&q&&text[i+1]==='"'){cell+='"';i++}else if(c==='"')q=!q;else if(c===','&&!q){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell=''}else cell+=c}row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows}
 function getCol(headers,key){let list=aliases[key]||[key];return headers.findIndex(h=>list.includes(norm(h)))}
-function importCSV(text){let rows=parseCSV(text);if(rows.length<2)throw Error('CSV needs a header row and at least one player.');let h=rows[0].map(norm);let pi=getCol(h,'player');if(pi<0)throw Error('Could not find a Player or Name column.');let parsed=[];for(let r of rows.slice(1)){let raw={};for(let k of Object.keys(aliases)){let ix=getCol(h,k);if(ix>=0)raw[k]=r[ix]??''}let p={};p.name=(raw.player||'').trim();if(!p.name)continue;p.team=raw.team||'';let posText=String(raw.pos||'').toUpperCase().trim();let statusFromPos='';let statusMatch=posText.match(/\s*(DTD|OUT)\s*$/);if(statusMatch){statusFromPos=statusMatch[1];posText=posText.slice(0,statusMatch.index).trim()}p.pos=posText.replace(/\s+/g,'');p.status=String(raw.status||statusFromPos).toUpperCase().trim();if(!['DTD','OUT'].includes(p.status))p.status='';p.rank=num(raw.rank);p.gp=num(raw.gp);p.min=num(raw.min);for(let k of ['fg%','ft%','threes','pts','reb','ast','stl','blk','fgm','fga','ftm','fta'])p[k]=num(raw[k]);p.risk=String(raw.risk||'').trim();p.sleeper=/^(yes|y|true|1|sleeper|high)$/i.test(String(raw.sleeper||''));p.notes=raw.notes||'';const playoff=playoffInfo(p);p.playoffWeeks=playoff?.weeks||null;p.playoffGames=playoff?.total??null;p.playoffCode=playoff?.code||'';picks;parsed.push(p)}if(!parsed.length)throw Error('No player names found.');players=parsed; // retain drafted picks only if names still exist
+function importCSV(text){let rows=parseCSV(text);if(rows.length<2)throw Error('CSV needs a header row and at least one player.');let h=rows[0].map(norm);let pi=getCol(h,'player');if(pi<0)throw Error('Could not find a Player or Name column.');let parsed=[];for(let r of rows.slice(1)){let raw={};for(let k of Object.keys(aliases)){let ix=getCol(h,k);if(ix>=0)raw[k]=r[ix]??''}let p={};p.name=(raw.player||'').trim();if(!p.name)continue;p.team=raw.team||'';let posText=String(raw.pos||'').toUpperCase().trim();let statusFromPos='';let statusMatch=posText.match(/\s*(DTD|OUT)\s*$/);if(statusMatch){statusFromPos=statusMatch[1];posText=posText.slice(0,statusMatch.index).trim()}p.pos=posText.replace(/\s+/g,'');p.status=String(raw.status||statusFromPos).toUpperCase().trim();if(!['DTD','OUT'].includes(p.status))p.status='';p.rank=num(raw.rank);p.gp=num(raw.gp);p.min=num(raw.min);for(let k of ['fg%','ft%','threes','pts','reb','ast','stl','blk','fgm','fga','ftm','fta'])p[k]=num(raw[k]);p.risk=String(raw.risk||'').trim();p.sleeper=/^(yes|y|true|1|sleeper|high)$/i.test(String(raw.sleeper||''));p.notes=raw.notes||'';const playoff=playoffInfo(p);p.playoffWeeks=playoff?.weeks||null;p.playoffGames=playoff?.total??null;p.playoffCode=playoff?.code||'';p.volumeEstimatedFields=[];p.volumeSource='';parsed.push(p)}if(!parsed.length)throw Error('No player names found.');players=parsed;if(historicalStatsReady)applyEstimatedShootingVolumes(); // retain drafted picks only if names still exist
 picks=picks.filter(pk=>players.some(p=>p.name.toLowerCase()===pk.player.toLowerCase()));recalc();render();$('statusPill').textContent=`${players.length} projections loaded · auto-saved`;}
+const HISTORICAL_STATS_URL='https://raw.githubusercontent.com/Data-Dunkers/data/main/NBA/player/nba_player_stats_2025-2026.csv';
+function playerKey(name){return String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\b(jr|sr|ii|iii|iv)\b/g,'').replace(/[^a-z0-9]/g,'')}
+function normalizedPct(value){if(value==null||!Number.isFinite(Number(value)))return null;let n=Number(value);if(n>1)n/=100;return n>=0&&n<=1?n:null}
+function applyEstimatedShootingVolumes(){
+ let estimatedCount=0,matchedCount=0;
+ for(const p of players){
+  if(!Array.isArray(p.volumeEstimatedFields))p.volumeEstimatedFields=[];
+  for(const field of p.volumeEstimatedFields)p[field]=null;
+  p.volumeEstimatedFields=[];
+  if(p.fgm==null&&p.fga==null&&p.ftm==null&&p.fta==null&&p.volumeSource==='estimated-2025-26')p.volumeSource='';
+  const hist=historicalShootingStats.get(playerKey(p.name));
+  if(!hist)continue;
+  matchedCount++;
+  let projectedMinutes=null;
+  if(p.min!=null&&p.gp!=null&&p.gp>0)projectedMinutes=p.min>500?p.min:p.min*p.gp;
+  else if(p.gp!=null&&p.gp>0&&hist.min>0)projectedMinutes=hist.min*p.gp;
+  if(!(projectedMinutes>0)||!(hist.min>0))continue;
+  const scale=projectedMinutes/(hist.min*hist.gp);
+  const estimates={fga:hist.fga*hist.gp*scale,fta:hist.fta*hist.gp*scale};
+  for(const field of ['fga','fta'])if(p[field]==null&&Number.isFinite(estimates[field])&&estimates[field]>=0){p[field]=estimates[field];p.volumeEstimatedFields.push(field)}
+  const fgPct=normalizedPct(p['fg%']),ftPct=normalizedPct(p['ft%']);
+  if(p.fgm==null&&p.fga>0&&fgPct!=null){p.fgm=p.fga*fgPct;p.volumeEstimatedFields.push('fgm')}
+  if(p.ftm==null&&p.fta>0&&ftPct!=null){p.ftm=p.fta*ftPct;p.volumeEstimatedFields.push('ftm')}
+  if(p.volumeEstimatedFields.length){p.volumeSource='estimated-2025-26';estimatedCount++}
+ }
+ const status=$('volumeDataStatus');
+ if(status)status.textContent=historicalStatsReady
+  ?`Historical shooting rates loaded. Estimated volume for ${estimatedCount} of ${players.length} imported players (${matchedCount} matched to 2025–26 stats). Estimated fields are used only where your CSV did not supply them.`
+  :'Historical shooting rates unavailable; import remains usable with the existing percentage fallback.';
+}
+async function loadHistoricalShootingStats(){
+ const status=$('volumeDataStatus');
+ try{
+  if(status)status.textContent='Loading public 2025–26 shooting rates…';
+  const response=await fetch(HISTORICAL_STATS_URL,{cache:'no-cache'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const rows=parseCSV(await response.text());
+  if(rows.length<2)throw Error('No historical stats found');
+  const headers=rows[0].map(norm),idx={};
+  for(const key of ['player','gp','min','fga','fta'])idx[key]=getCol(headers,key);
+  if(Object.values(idx).some(i=>i<0))throw Error('Historical CSV is missing required columns');
+  const next=new Map();
+  for(const row of rows.slice(1)){
+   const name=row[idx.player],gp=num(row[idx.gp]),min=num(row[idx.min]),fga=num(row[idx.fga]),fta=num(row[idx.fta]);
+   if(name&&gp>0&&min>0&&fga!=null&&fta!=null)next.set(playerKey(name),{gp,min,fga,fta});
+  }
+  historicalShootingStats=next;historicalStatsReady=true;
+  applyEstimatedShootingVolumes();recalc();render();
+ }catch(error){
+  historicalStatsReady=false;
+  if(status)status.textContent='Could not load public historical shooting rates. The draft tool still works; percentage valuation will use the available data and fallback.';
+ }
+}
 function scoringValue(p,k){
  if(k==='fg%'){if(p.fgm!=null&&p.fga>0)return p.fgm/p.fga;if(p['fg%']!=null)return p['fg%'];return null}
  if(k==='ft%'){if(p.ftm!=null&&p.fta>0)return p.ftm/p.fta;if(p['ft%']!=null)return p['ft%'];return null}
@@ -323,5 +377,6 @@ $('cloudSaveBtn').onclick=async()=>{try{await saveCloudState(true)}catch(e){clou
 $('signOutBtn').onclick=async()=>{try{const {error}=await supabaseClient.auth.signOut();if(error)throw error}catch(e){cloudMessage('Could not sign out: '+e.message)}};
 if(loadState()){$('statusPill').textContent=`Restored ${players.length} projections from this browser`;render()}else render();
 initCloudSync();
+loadHistoricalShootingStats();
 </script>
 </body></html>
