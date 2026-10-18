@@ -109,11 +109,11 @@ let authSession=null, cloudHydrating=false, cloudSaveTimer=null, cloudReady=fals
 let restoredAtStartup=false;
 const $=id=>document.getElementById(id);
 const playoffSchedule={
- ATL:[4,4,3],BKN:[3,4,4],BOS:[4,3,4],CHA:[4,3,4],CHI:[3,3,4],CLE:[4,3,2],
- DAL:[4,4,4],DEN:[4,4,3],DET:[4,3,4],GSW:[4,3,4],HOU:[3,3,4],IND:[3,4,3],
- LAC:[4,3,4],LAL:[3,4,3],MEM:[4,4,4],MIA:[4,3,3],MIL:[3,3,4],MIN:[4,2,4],
- NYK:[3,3,4],NOP:[4,4,3],OKC:[4,3,4],ORL:[3,4,4],PHI:[3,4,4],PHX:[4,4,4],
- POR:[3,4,3],SAC:[4,4,3],SAS:[3,3,3],TOR:[3,4,4],UTA:[3,3,3],WAS:[3,3,3]
+ ATL:[3,4,4],BKN:[4,3,4],BOS:[3,4,3],CHA:[2,4,3],CHI:[4,3,3],CLE:[3,4,3],
+ DAL:[2,4,4],DEN:[3,4,4],DET:[3,4,3],GSW:[4,4,3],HOU:[4,3,3],IND:[3,3,4],
+ LAC:[3,4,3],LAL:[4,3,4],MEM:[3,4,4],MIA:[3,4,3],MIL:[3,3,3],MIN:[3,4,2],
+ NYK:[3,3,3],NOP:[4,4,4],OKC:[3,4,3],ORL:[3,3,4],PHI:[4,3,4],PHX:[3,4,4],
+ POR:[4,3,4],SAC:[3,4,4],SAS:[3,3,4],TOR:[3,3,4],UTA:[4,3,3],WAS:[4,3,3]
 };
 function teamCode(team){
  let t=String(team||'').toUpperCase().replace(/[^A-Z]/g,'');
