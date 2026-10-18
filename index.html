@@ -63,7 +63,7 @@ button{cursor:pointer}button.primary{background:#315b9c;border-color:#4c7ec4}but
     <select id="posFilter"><option value="">All positions</option><option>PG</option><option>SG</option><option>SF</option><option>PF</option><option>C</option></select>
    </div>
    <div class="tablewrap"><table><thead><tr><th>Rank</th><th>Player</th><th>Pos</th><th>Status</th><th>Value</th><th>Playoff schedule</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>3PM</th><th>FG%</th><th>FT%</th><th>Risk</th><th>Action</th></tr></thead><tbody id="playersBody"><tr><td colspan="16" class="empty">Import a CSV of 2026–27 projections to populate this board.</td></tr></tbody></table></div>
-   <p class="sub">Click Draft to assign the selected player to the current pick. Choose Season-total value for availability-adjusted cumulative production or Per-game value to compare production rates. Per-game values are derived by dividing counting-stat totals by projected games played. Playoff schedule shows games in Round 1 / Round 2 / Round 3 (Mar 1–7 / Mar 8–14 / Mar 15–21). Schedule impact is weighted 40% / 30% / 30% across the rounds, with Round 1 slightly prioritized to reflect the need to advance; it is a modest tie-breaker, not a replacement for player quality.</p>
+   <p class="sub">Click Draft to assign the selected player to the current pick. Choose Season-total value for availability-adjusted cumulative production or Per-game value to compare production rates. Per-game values are derived by dividing counting-stat totals by projected games played. Playoff schedule shows games in Round 1 / Round 2 / Round 3 (Mar 1–7 / Mar 8–14 / Mar 15–21). Schedule impact is weighted 40% / 30% / 30% across the rounds, with Round 1 slightly prioritized. It matters most in Rounds 1–3 of the NBA draft, becomes a minor tiebreaker in Rounds 4–6, and has minimal influence in later rounds.</p>
   </section>
   <section class="panel">
    <div class="topline"><h2>All-team draft board</h2><span class="pill">15 rounds · 180 picks</span></div>
@@ -180,7 +180,7 @@ function calcScores(){
   p.fit=roster.length?fit/metrics.length:0;
   let risk=String(p.risk||'').toLowerCase(),status=String(p.status||'').toLowerCase();
   p.riskPenalty=status==='out'?1.25:status==='dtd'?0.35:risk.includes('high')||risk.includes('out')||risk.includes('injured')?0.65:risk.includes('med')||risk.includes('question')||risk.includes('day')?0.25:0;
-  p.scheduleBonus=p.playoffWeeks?((p.playoffWeeks[0]-3.5)*0.40+(p.playoffWeeks[1]-3.5)*0.30+(p.playoffWeeks[2]-3.5)*0.30)*0.14:0; p.score=p.base+0.35*p.fit-p.riskPenalty+(p.sleeper?0.12:0)+p.scheduleBonus;
+  const draftRound=Math.ceil(nextOpen()/12); const playoffWeight=draftRound<=3?0.22:draftRound<=6?0.07:0.02; p.scheduleBonus=p.playoffWeeks?((p.playoffWeeks[0]-3.5)*0.40+(p.playoffWeeks[1]-3.5)*0.30+(p.playoffWeeks[2]-3.5)*0.30)*playoffWeight:0; p.score=p.base+0.35*p.fit-p.riskPenalty+(p.sleeper?0.12:0)+p.scheduleBonus;
  }
 }
 function recalc(){for(let t of teams)t.picks=[];for(let pk of picks){let t=teams[pk.team-1];if(t)t.picks.push(pk.player)}calcScores()}
