@@ -288,7 +288,7 @@ async function loadCloudState(confirmOverwrite=true){
  if(!data||!Array.isArray(data.players)||!Array.isArray(data.picks))throw Error('The cloud save is not in the expected format.');
  cloudHydrating=true;
  try{
-  players=data.players;picks=data.picks;currentPick=Math.max(1,Math.min(180,Number(data.currentPick)||8));
+  players=data.players;if(historicalStatsReady)applyEstimatedShootingVolumes();picks=data.picks;currentPick=Math.max(1,Math.min(180,Number(data.currentPick)||8));
   if(data.scoreBasis)$('scoreBasis').value=data.scoreBasis;
   for(const saved of (data.teams||[])){const t=teams.find(x=>x.id===Number(saved.id));if(t&&saved.name)t.name=String(saved.name).slice(0,50)}
   picks.sort((a,b)=>a.overall-b.overall);recalc();render();cloudReady=true;
@@ -333,7 +333,7 @@ function loadState(){
  try{
   const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return false;
   const data=JSON.parse(raw);if(!data||!Array.isArray(data.players)||!Array.isArray(data.picks))return false;
-  players=data.players;picks=data.picks;currentPick=Math.max(1,Math.min(180,Number(data.currentPick)||8));
+  players=data.players;if(historicalStatsReady)applyEstimatedShootingVolumes();picks=data.picks;currentPick=Math.max(1,Math.min(180,Number(data.currentPick)||8));
   if(data.scoreBasis)$('scoreBasis').value=data.scoreBasis;
   for(const saved of (data.teams||[])){const t=teams.find(x=>x.id===Number(saved.id));if(t&&saved.name)t.name=String(saved.name).slice(0,50)}
   picks.sort((a,b)=>a.overall-b.overall);recalc();restoredAtStartup=true;return true;
@@ -356,7 +356,7 @@ $('importBtn').onclick=()=>$('csvFile').click();$('csvFile').onchange=async e=>{
 $('templateBtn').onclick=()=>{let csv='Player,Team,Pos,Status,Rank,GP,MIN,FG%,FT%,3PM,PTS,REB,AST,STL,BLK,FGM,FGA,FTM,FTA,Risk,Sleeper,Notes\n';let blob=new Blob([csv],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='nba_projection_template.csv';a.click();URL.revokeObjectURL(a.href)};
 $('exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),players,picks,currentPick,scoreBasis:$('scoreBasis').value,teams:teams.map(t=>({id:t.id,name:t.name}))},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='nba_draft_backup.json';a.click();URL.revokeObjectURL(a.href)};
 $('importBackupBtn').onclick=()=>$('backupFile').click();
-$('backupFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let data=JSON.parse(await f.text());if(!Array.isArray(data.players)||!Array.isArray(data.picks))throw Error('This does not look like a valid NBA draft backup.');players=data.players;picks=data.picks;currentPick=Math.max(1,Math.min(180,Number(data.currentPick)||8));if(data.scoreBasis)$('scoreBasis').value=data.scoreBasis;for(let saved of (data.teams||[])){let t=teams.find(x=>x.id===Number(saved.id));if(t&&saved.name)t.name=String(saved.name).slice(0,50)}picks=picks.filter(p=>Number(p.overall)>=1&&Number(p.overall)<=180&&Number(p.team)>=1&&Number(p.team)<=12);picks.sort((a,b)=>a.overall-b.overall);recalc();render();$('statusPill').textContent=`Backup restored · ${players.length} players`;}catch(err){alert('Could not restore backup: '+err.message)}e.target.value=''};
+$('backupFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let data=JSON.parse(await f.text());if(!Array.isArray(data.players)||!Array.isArray(data.picks))throw Error('This does not look like a valid NBA draft backup.');players=data.players;if(historicalStatsReady)applyEstimatedShootingVolumes();picks=data.picks;currentPick=Math.max(1,Math.min(180,Number(data.currentPick)||8));if(data.scoreBasis)$('scoreBasis').value=data.scoreBasis;for(let saved of (data.teams||[])){let t=teams.find(x=>x.id===Number(saved.id));if(t&&saved.name)t.name=String(saved.name).slice(0,50)}picks=picks.filter(p=>Number(p.overall)>=1&&Number(p.overall)<=180&&Number(p.team)>=1&&Number(p.team)<=12);picks.sort((a,b)=>a.overall-b.overall);recalc();render();$('statusPill').textContent=`Backup restored · ${players.length} players`;}catch(err){alert('Could not restore backup: '+err.message)}e.target.value=''};
 $('undoBtn').onclick=undo;$('resetBtn').onclick=()=>{if(confirm('Clear all drafted picks? Imported player projections will remain.')){picks=[];currentPick=8;recalc();render()}};
 $('search').oninput=renderPlayers;$('sortBy').onchange=renderPlayers;$('posFilter').onchange=renderPlayers;$('scoreBasis').onchange=()=>{render();};
 $('teamSelect').onchange=e=>manualTeam=Number(e.target.value);$('manualPickBtn').onclick=recordManualPick;$('manualPlayer').addEventListener('keydown',e=>{if(e.key==='Enter')recordManualPick()});$('jumpBtn').onclick=()=>{let n=Number($('pickSelect').value);if(n<1||n>180)return alert('Pick must be between 1 and 180.');currentPick=n;render()};
