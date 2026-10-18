@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NBA Fantasy Draft Assistant</title>
+<style>
+:root{--bg:#0b1020;--panel:#121a2d;--panel2:#19243a;--line:#2b3954;--text:#eef3ff;--muted:#a5b3ca;--accent:#8ab4ff;--green:#77d6a1;--yellow:#ffd479;--red:#ff9292}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:22px max(18px,calc((100vw - 1450px)/2));border-bottom:1px solid var(--line);background:#0d1426}
+h1{margin:0;font-size:24px}h2{font-size:16px;margin:0 0 12px}p{margin:6px 0;color:var(--muted)}.wrap{max-width:1450px;margin:auto;padding:18px}
+.topline{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.pill{border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--muted);font-size:12px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.metric,.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}.metric small{display:block;color:var(--muted)}.metric strong{display:block;font-size:23px;margin-top:4px}
+.layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:14px;align-items:start}.layout>.stack,.stack>.panel,.panel{min-width:0}.stack{display:grid;gap:14px;align-content:start}
+button,input,select{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+button{cursor:pointer}button.primary{background:#315b9c;border-color:#4c7ec4}button:hover{filter:brightness(1.13)}button:disabled{opacity:.4;cursor:not-allowed}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.controls input[type=search]{flex:1;min-width:180px}
+.tablewrap{width:100%;min-width:0;overflow:auto;max-height:500px;border:1px solid var(--line);border-radius:8px}table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:right}th{position:sticky;top:0;background:#1a2740;color:#c8d7ef;z-index:1}th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}td.name{font-weight:650}tr:last-child td{border-bottom:0}.sub{font-size:11px;color:var(--muted)}.tag{display:inline-block;padding:2px 6px;border-radius:5px;background:#273751;color:#cfe0ff;margin-right:4px}.tag.green{background:#183c31;color:#9cf0bf}.tag.yellow{background:#49391e;color:#ffdb8e}.tag.red{background:#48252e;color:#ffb0b0}
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.team-name-editor{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.team-name-field{display:flex;flex-direction:column;gap:4px;min-width:0}.team-name-field label{font-size:11px;color:var(--muted)}.team-name-field input{width:100%;min-width:0}.team{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;min-height:92px}.team h3{font-size:12px;margin:0 0 6px;display:flex;justify-content:space-between}.team ol{margin:0;padding-left:20px;color:var(--muted);font-size:11px}.team li{padding:2px 0}.team.me{border-color:#719ee9}.team.next{box-shadow:inset 0 0 0 1px var(--accent)}
+.cards{display:grid;gap:8px}.pickcard{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--panel2)}.pickcard strong{display:block}.pickcard p{font-size:12px;margin:4px 0}.bar{height:6px;border-radius:6px;background:#2b3954;overflow:hidden;flex:1}.bar>span{display:block;height:100%;background:var(--accent)}.catrow{display:flex;gap:8px;align-items:center;margin:7px 0}.catrow label{width:38px;font-size:12px;color:var(--muted)}.catrow small{width:32px;text-align:right;color:var(--muted)}
+.notice{padding:10px;border-radius:8px;background:#202d43;color:#c9d8ed;font-size:12px;margin:10px 0}.warning{background:#42351f;color:#ffe0a0}.file{display:none}.smallbtn{padding:5px 7px;font-size:11px}.footer{color:var(--muted);font-size:11px;margin-top:14px}.empty{color:var(--muted);padding:20px;text-align:center}
+@media(max-width:1100px){.layout{grid-template-columns:minmax(0,1fr)}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.wrap{padding:10px}.board,.team-name-editor{grid-template-columns:1fr}.metrics{gap:7px}.metric{padding:10px}.metric strong{font-size:20px}}
+</style>
+</head>
+<body>
+<header><div class="topline"><div><h1>🏀 NBA Fantasy Draft Assistant</h1><p>ESPN · 12 teams · 8-cat H2H · snake draft · pick 8</p></div><span class="pill" id="statusPill">No projection file loaded</span></div></header>
+<main class="wrap">
+<div class="notice warning"><b>Data status:</b> This is a draft tracker, not a live ESPN integration. Imported projections, picks, and team names auto-save in this browser. Use Export backup to move your work to another device; cloud sync will be a later step.</div>
+<div class="metrics">
+ <div class="metric"><small>My roster</small><strong id="rosterCount">0 / 15</strong></div>
+ <div class="metric"><small>Next overall pick</small><strong id="nextPick">8</strong></div>
+ <div class="metric"><small>Players available</small><strong id="availableCount">0</strong></div>
+ <div class="metric"><small>Draft progress</small><strong id="progress">0 / 180</strong></div>
+</div>
+<div class="controls">
+ <button class="primary" id="importBtn">Import projections CSV</button><input class="file" type="file" id="csvFile" accept=".csv,text/csv">
+ <button id="templateBtn">Download CSV template</button>
+ <button id="exportBtn">Export backup</button>
+ <button id="importBackupBtn">Restore backup</button><input class="file" type="file" id="backupFile" accept=".json,application/json">
+ <button id="undoBtn" disabled>Undo last pick</button>
+ <button id="resetBtn">Reset draft</button>
+</div>
+<div class="layout">
+ <div class="stack">
+  <section class="panel">
+   <div class="topline"><h2>Available player board</h2><span class="pill" id="poolLabel">No data</span></div>
+   <div class="controls">
+    <input type="search" id="search" placeholder="Search player, team, position…">
+    <select id="scoreBasis" aria-label="Ranking basis"><option value="season">Season-total value</option><option value="pergame">Per-game value</option></select>
+    <select id="sortBy"><option value="score">Assistant value</option><option value="rank">Source rank</option><option value="pts">Projected points</option><option value="reb">Rebounds</option><option value="ast">Assists</option><option value="stl">Steals</option><option value="blk">Blocks</option><option value="threes">3-pointers</option></select>
+    <select id="posFilter"><option value="">All positions</option><option>PG</option><option>SG</option><option>SF</option><option>PF</option><option>C</option></select>
+   </div>
+   <div class="tablewrap"><table><thead><tr><th>Rank</th><th>Player</th><th>Pos</th><th>Status</th><th>Value</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>3PM</th><th>FG%</th><th>FT%</th><th>Risk</th><th>Action</th></tr></thead><tbody id="playersBody"><tr><td colspan="15" class="empty">Import a CSV of 2026–27 projections to populate this board.</td></tr></tbody></table></div>
+   <p class="sub">Click Draft to assign the selected player to the current pick. Choose Season-total value for availability-adjusted cumulative production or Per-game value to compare production rates. Per-game values are derived by dividing counting-stat totals by projected games played.</p>
+  </section>
+  <section class="panel">
+   <div class="topline"><h2>All-team draft board</h2><span class="pill">15 rounds · 180 picks</span></div>
+   <div class="controls"><label class="sub" for="teamSelect">Team for manual pick:</label><select id="teamSelect"></select><label class="sub" for="pickSelect">Overall pick:</label><input id="pickSelect" type="number" min="1" max="180" value="8" style="width:90px"><input id="manualPlayer" placeholder="Player name to log…" style="min-width:180px"><button id="manualPickBtn">Record manual pick</button><button id="jumpBtn">Set next pick</button></div>
+   <div class="board" id="draftBoard"></div>
+   <details style="margin-top:12px">
+    <summary style="cursor:pointer;color:var(--muted);padding:6px 0">Edit team names / owners</summary>
+    <p class="sub">Enter each team name or manager name. Your team is highlighted and starts in the 8th draft slot.</p>
+    <div id="teamNamesEditor" class="team-name-editor"></div>
+   </details>
+  </section>
+ </div>
+ <div class="stack">
+  <section class="panel">
+   <h2>Pick advisor</h2><p id="advisorIntro">Import projections to receive category-aware recommendations.</p>
+   <div class="cards" id="recommendations"><div class="empty">Recommendations will appear here after import.</div></div>
+  </section>
+  <section class="panel">
+   <h2>My roster & category profile</h2>
+   <div id="rosterList" class="cards"><div class="empty">No players drafted yet.</div></div>
+   <div style="margin-top:14px" id="categoryProfile"></div>
+  </section>
+  <section class="panel">
+   <h2>CSV import requirements</h2>
+   <p>Minimum useful columns: <b>Player, Team, Pos, Rank, GP, MIN, FG%, FT%, 3PM, PTS, REB, AST, STL, BLK</b>.</p>
+   <p>For accurate volume-weighted FG% and FT% valuation, also include <b>FGM, FGA, FTM, FTA</b>. Headers are case-insensitive; common ESPN/FantasyPros names are mapped automatically.</p>
+   <p>Optional: <b>Risk</b> (Low/Medium/High), <b>Sleeper</b> (yes/no), <b>Notes</b>. Paste/import only projections you have permission to use.</p>
+   <p><a href="https://fantasy.espn.com/basketball/players/projections?leagueId=4487" target="_blank" rel="noopener" style="color:#9fc4ff">ESPN projections</a> · <a href="https://www.fantasypros.com/nba/projections/overall.php" target="_blank" rel="noopener" style="color:#9fc4ff">FantasyPros projections</a> · <a href="https://hashtagbasketball.com/fantasy-basketball-projections" target="_blank" rel="noopener" style="color:#9fc4ff">Hashtag Basketball category projections</a></p>
+  </section>
+</div>
+<div class="footer">Prototype v2 · 8-cat excludes turnovers: FG%, FT%, 3PM, PTS, REB, AST, STL, BLK. Percentage categories are best valued using makes/attempts. This app does not automatically read ESPN's live draft room or verify breaking injury news.</div>
+</main>
+<script>
+const CAT=['FG%','FT%','3PM','PTS','REB','AST','STL','BLK'];
+const teams=Array.from({length:12},(_,i)=>({id:i+1,name:i===7?'My Team':`Team ${i+1}`,picks:[]}));
+let players=[],picks=[],currentPick=8,manualTeam=8;
+const STORAGE_KEY='nbaFantasyDraftAssistant_v2';
+let restoredAtStartup=false;
+const $=id=>document.getElementById(id);
+const aliases={
+ player:['player','name','player name','athlete'],team:['team','nba team','pro team'],pos:['pos','position','positions'],status:['status','injury status','availability'],
+ rank:['rank','rk','overall rank','overall'],gp:['gp','games','games played','proj gp'],min:['min','minutes','mpg'],
+ 'fg%':['fg%','fg pct','fg_pct','field goal %','field goal percentage'], 'ft%':['ft%','ft pct','ft_pct','free throw %','free throw percentage'],
+ threes:['3pm','3p','3ptm','3-pointers','three pointers'],pts:['pts','points'],reb:['reb','rebounds','treb'],ast:['ast','assists'],stl:['stl','steals'],blk:['blk','blocks'],
+ fgm:['fgm','field goals made'],fga:['fga','field goals attempted'],ftm:['ftm','free throws made'],fta:['fta','free throws attempted'],
+ risk:['risk','injury risk','risk flag'],sleeper:['sleeper','upside','breakout'],notes:['notes','outlook','comment']
+};
+function norm(s){return String(s??'').trim().toLowerCase().replace(/[_-]/g,' ').replace(/\s+/g,' ')}
+function num(v){if(v===undefined||v===null||String(v).trim()==='')return null;let n=parseFloat(String(v).replace('%','').replace(',',''));if(!Number.isFinite(n))return null;if(String(v).includes('%')&&n>1)n/=100;return n}
+function parseCSV(text){let rows=[],row=[],cell='',q=false;for(let i=0;i<text.length;i++){let c=text[i];if(c==='"'&&q&&text[i+1]==='"'){cell+='"';i++}else if(c==='"')q=!q;else if(c===','&&!q){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell=''}else cell+=c}row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows}
+function getCol(headers,key){let list=aliases[key]||[key];return headers.findIndex(h=>list.includes(norm(h)))}
+function importCSV(text){let rows=parseCSV(text);if(rows.length<2)throw Error('CSV needs a header row and at least one player.');let h=rows[0].map(norm);let pi=getCol(h,'player');if(pi<0)throw Error('Could not find a Player or Name column.');let parsed=[];for(let r of rows.slice(1)){let raw={};for(let k of Object.keys(aliases)){let ix=getCol(h,k);if(ix>=0)raw[k]=r[ix]??''}let p={};p.name=(raw.player||'').trim();if(!p.name)continue;p.team=raw.team||'';let posText=String(raw.pos||'').toUpperCase().trim();let statusFromPos='';let statusMatch=posText.match(/\s*(DTD|OUT)\s*$/);if(statusMatch){statusFromPos=statusMatch[1];posText=posText.slice(0,statusMatch.index).trim()}p.pos=posText.replace(/\s+/g,'');p.status=String(raw.status||statusFromPos).toUpperCase().trim();if(!['DTD','OUT'].includes(p.status))p.status='';p.rank=num(raw.rank);p.gp=num(raw.gp);p.min=num(raw.min);for(let k of ['fg%','ft%','threes','pts','reb','ast','stl','blk','fgm','fga','ftm','fta'])p[k]=num(raw[k]);p.risk=String(raw.risk||'').trim();p.sleeper=/^(yes|y|true|1|sleeper|high)$/i.test(String(raw.sleeper||''));p.notes=raw.notes||'';picks;parsed.push(p)}if(!parsed.length)throw Error('No player names found.');players=parsed; // retain drafted picks only if names still exist
+picks=picks.filter(pk=>players.some(p=>p.name.toLowerCase()===pk.player.toLowerCase()));recalc();render();$('statusPill').textContent=`${players.length} projections loaded · auto-saved`;}
+function scoringValue(p,k){
+ if(k==='fg%'){if(p.fgm!=null&&p.fga>0)return p.fgm/p.fga;if(p['fg%']!=null)return p['fg%'];return null}
+ if(k==='ft%'){if(p.ftm!=null&&p.fta>0)return p.ftm/p.fta;if(p['ft%']!=null)return p['ft%'];return null}
+ let v=p[k]??null;
+ if(v==null)return null;
+ if($('scoreBasis')?.value==='pergame' && p.gp>0 && ['threes','pts','reb','ast','stl','blk'].includes(k)) return v/p.gp;
+ return v;
+}
+function metricVal(p,k){return scoringValue(p,k)}
+function calcScores(){
+ if(!players.length)return;
+ const metrics=['fg%','ft%','threes','pts','reb','ast','stl','blk'];let stats={};
+ for(let k of metrics){
+  let vals=players.map(p=>scoringValue(p,k)).filter(v=>v!==null);
+  let mean=vals.reduce((a,b)=>a+b,0)/(vals.length||1);
+  let sd=Math.sqrt(vals.reduce((a,b)=>a+(b-mean)**2,0)/(vals.length||1))||1;
+  stats[k]={mean,sd};
+ }
+ const roster=teams[7].picks.map(n=>players.find(x=>x.name.toLowerCase()===n.toLowerCase())).filter(Boolean);
+ let teamMeans={};
+ for(let k of metrics){
+  const vals=roster.map(x=>scoringValue(x,k)).filter(v=>v!==null);
+  const zs=vals.map(v=>(v-stats[k].mean)/stats[k].sd);
+  teamMeans[k]=zs.length?zs.reduce((a,b)=>a+b,0)/zs.length:0;
+ }
+ for(let p of players){
+  p.z={};let sum=0;
+  for(let k of metrics){
+   let v=scoringValue(p,k),z=v===null?0:(v-stats[k].mean)/stats[k].sd;
+   p.z[k]=z;sum+=z;
+  }
+  p.base=sum/Math.sqrt(metrics.length);
+  let fit=0;
+  for(let k of metrics)fit+=Math.max(-1.3,Math.min(1.3,-teamMeans[k]))*p.z[k];
+  p.fit=roster.length?fit/metrics.length:0;
+  let risk=String(p.risk||'').toLowerCase(),status=String(p.status||'').toLowerCase();
+  p.riskPenalty=status==='out'?1.25:status==='dtd'?0.35:risk.includes('high')||risk.includes('out')||risk.includes('injured')?0.65:risk.includes('med')||risk.includes('question')||risk.includes('day')?0.25:0;
+  p.score=p.base+0.35*p.fit-p.riskPenalty+(p.sleeper?0.12:0);
+ }
+}
+function recalc(){for(let t of teams)t.picks=[];for(let pk of picks){let t=teams[pk.team-1];if(t)t.picks.push(pk.player)}calcScores()}
+function draftedNames(){return new Set(picks.map(p=>p.player.toLowerCase()))}
+function snakeTeam(n){let round=Math.ceil(n/12),slot=(n-1)%12;return round%2===1?slot+1:12-slot}
+function nextOpen(){for(let i=currentPick;i<=180;i++)if(!picks.some(p=>p.overall===i))return i;for(let i=1;i<currentPick;i++)if(!picks.some(p=>p.overall===i))return i;return 181}
+function draftPlayer(name){if(picks.some(p=>p.player.toLowerCase()===name.toLowerCase()))return alert('That player is already drafted.');let overall=nextOpen();if(overall>180)return alert('Draft is full.');let team=snakeTeam(overall);picks.push({overall,round:Math.ceil(overall/12),team,player:name});currentPick=overall+1;if(currentPick>180)currentPick=180;$('pickSelect').value=currentPick;recalc();render()}
+function recordManualPick(){let name=$('manualPlayer').value.trim();let overall=Number($('pickSelect').value);let team=Number($('teamSelect').value);if(!name)return alert('Enter a player name to record.');if(overall<1||overall>180)return alert('Pick must be between 1 and 180.');if(picks.some(p=>p.player.toLowerCase()===name.toLowerCase()))return alert('That player is already drafted.');if(picks.some(p=>p.overall===overall))return alert('That overall pick is already recorded. Undo or choose another pick.');picks.push({overall,round:Math.ceil(overall/12),team,player:name});picks.sort((a,b)=>a.overall-b.overall);currentPick=overall+1;while(currentPick<=180&&picks.some(p=>p.overall===currentPick))currentPick++;if(currentPick>180)currentPick=180;$('pickSelect').value=currentPick;$('manualPlayer').value='';recalc();render()}
+function undo(){if(!picks.length)return;let last=picks[picks.length-1];picks.pop();currentPick=last.overall;recalc();render()}
+function saveState(){
+ try{
+  const data={version:2,savedAt:new Date().toISOString(),players,picks,currentPick,scoreBasis:$('scoreBasis')?.value||'season',teams:teams.map(t=>({id:t.id,name:t.name}))};
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+  const pill=$('statusPill');
+  if(pill && players.length)pill.textContent=`${players.length} projections · saved in this browser`;
+ }catch(e){const pill=$('statusPill');if(pill)pill.textContent='Auto-save unavailable · export backup';}
+}
+function loadState(){
+ try{
+  const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return false;
+  const data=JSON.parse(raw);if(!data||!Array.isArray(data.players)||!Array.isArray(data.picks))return false;
+  players=data.players;picks=data.picks;currentPick=Math.max(1,Math.min(180,Number(data.currentPick)||8));
+  if(data.scoreBasis)$('scoreBasis').value=data.scoreBasis;
+  for(const saved of (data.teams||[])){const t=teams.find(x=>x.id===Number(saved.id));if(t&&saved.name)t.name=String(saved.name).slice(0,50)}
+  picks.sort((a,b)=>a.overall-b.overall);recalc();restoredAtStartup=true;return true;
+ }catch(e){return false}
+}
+function render(){calcScores();$('rosterCount').textContent=`${teams[7].picks.length} / 15`;$('nextPick').textContent=nextOpen()>180?'Done':nextOpen();$('availableCount').textContent=players.filter(p=>!draftedNames().has(p.name.toLowerCase())).length;$('progress').textContent=`${picks.length} / 180`;$('undoBtn').disabled=!picks.length;$('poolLabel').textContent=players.length?`${players.length} players`:'No data';renderPlayers();renderBoard();renderAdvisor();renderRoster();populateTeams();saveState()}
+function renderPlayers(){let q=$('search').value.toLowerCase(),pos=$('posFilter').value,sort=$('sortBy').value;let arr=players.filter(p=>!draftedNames().has(p.name.toLowerCase())&&(!q||`${p.name} ${p.team} ${p.pos} ${p.status}`.toLowerCase().includes(q))&&(!pos||p.pos.includes(pos)));arr.sort((a,b)=>sort==='rank'?(a.rank??9999)-(b.rank??9999):sort==='pts'?(b.pts??-1)-(a.pts??-1):sort==='reb'?(b.reb??-1)-(a.reb??-1):sort==='ast'?(b.ast??-1)-(a.ast??-1):sort==='stl'?(b.stl??-1)-(a.stl??-1):sort==='blk'?(b.blk??-1)-(a.blk??-1):sort==='threes'?(b.threes??-1)-(a.threes??-1):(b.score??-999)-(a.score??-999));let body=$('playersBody');if(!arr.length){body.innerHTML=`<tr><td colspan="15" class="empty">${players.length?'No matching available players.':'Import a projection CSV to populate the player board.'}</td></tr>`;return}body.innerHTML=arr.slice(0,250).map((p,i)=>`<tr><td>${p.rank??i+1}</td><td class="name">${esc(p.name)}<div class="sub">${esc(p.team||'')} ${p.sleeper?'<span class="tag green">Upside</span>':''}</div></td><td>${esc(p.pos||'—')}</td><td>${p.status?`<span class="tag ${p.status==='OUT'?'red':''}">${esc(p.status)}</span>`:'—'}</td><td>${p.score==null?'—':p.score.toFixed(2)}</td><td>${fmt(p.pts)}</td><td>${fmt(p.reb)}</td><td>${fmt(p.ast)}</td><td>${fmt(p.stl)}</td><td>${fmt(p.blk)}</td><td>${fmt(p.threes)}</td><td>${fmtPct(p['fg%'],p.fgm,p.fga)}</td><td>${fmtPct(p['ft%'],p.ftm,p.fta)}</td><td>${p.status?riskTag(p.status):riskTag(p.risk)}</td><td><button class="smallbtn primary" data-draft="${attr(p.name)}">Draft</button></td></tr>`).join('');body.querySelectorAll('[data-draft]').forEach(b=>b.onclick=()=>draftPlayer(b.dataset.draft))}
+function renderBoard(){let board=$('draftBoard');board.innerHTML=teams.map(t=>{let latest=picks.filter(p=>p.team===t.id).sort((a,b)=>a.overall-b.overall);let next=nextOpen(),isNext=snakeTeam(next)===t.id;return `<div class="team ${t.id===8?'me':''} ${isNext?'next':''}"><h3><span>${t.id===8?'⭐ ':''}${esc(t.name)}</span><span>${latest.length}/15</span></h3><ol>${latest.length?latest.map(p=>`<li value="${p.overall}">${p.overall}. ${esc(p.player)}</li>`).join(''):'<li class="sub">No picks yet</li>'}</ol></div>`}).join('');renderTeamNamesEditor()}
+function renderAdvisor(){let available=players.filter(p=>!draftedNames().has(p.name.toLowerCase())).sort((a,b)=>(b.score??-999)-(a.score??-999));$('advisorIntro').textContent=players.length?`Current pick ${nextOpen()} · ${snakeTeam(nextOpen())===8?'You are on the clock':`${teams[snakeTeam(nextOpen())-1]?.name||'Opponent'} is next`} · ${$('scoreBasis').value==='pergame'?'per-game':'season-total'} basis.`: 'Import projections to receive category-aware recommendations.';let top=available.slice(0,3);$('recommendations').innerHTML=top.length?top.map((p,i)=>`<div class="pickcard"><div class="topline"><strong>${i===0?'⭐ Best overall value':i===1?'🎯 Alternative':'🚀 Upside / sleeper'}</strong><span class="pill">Value ${p.score.toFixed(2)}</span></div><strong style="margin-top:7px">${esc(p.name)} <span class="sub">${esc(p.pos||'')}</span></strong><p>${esc(p.team||'')} · ${p.gp??'?'} GP · ${p.min??'?'} min projected</p><p>${p.sleeper?'<span class="tag green">Sleeper flag</span>':''}${p.risk?riskTag(p.risk):'<span class="tag">Risk not supplied</span>'} ${esc(p.notes||'')}</p><button class="smallbtn primary" data-recdraft="${attr(p.name)}">Draft this player</button></div>`).join(''):'<div class="empty">No available players. Import projections or reset the draft.</div>';$('recommendations').querySelectorAll('[data-recdraft]').forEach(b=>b.onclick=()=>draftPlayer(b.dataset.recdraft))}
+function renderRoster(){let roster=teams[7].picks.map(name=>({name,p:players.find(p=>p.name.toLowerCase()===name.toLowerCase())}));$('rosterList').innerHTML=roster.length?roster.map(({name,p})=>`<div class="pickcard"><div class="topline"><strong>${esc(name)}</strong><button class="smallbtn" data-remove="${attr(name)}">Remove</button></div><p>${p?`${esc(p.pos||'')} · PTS ${fmt(p.pts)} · REB ${fmt(p.reb)} · AST ${fmt(p.ast)}`:'No projection row found for this player'}</p></div>`).join(''):'<div class="empty">No players drafted to your roster yet.</div>';$('rosterList').querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{let pk=picks.find(x=>x.team===8&&x.player===b.dataset.remove);if(pk){picks=picks.filter(x=>x!==pk);currentPick=pk.overall;recalc();render()}});let prof=$('categoryProfile');if(!roster.length){prof.innerHTML='';return}let keys=['fg%','ft%','threes','pts','reb','ast','stl','blk'];let vals=keys.map(k=>{let vs=roster.map(x=>x.p?metricVal(x.p,k):null).filter(v=>v!=null);return {k,v:vs.length?vs.reduce((a,b)=>a+b,0)/vs.length:null}});prof.innerHTML='<h2>Roster stat snapshot ('+($('scoreBasis').value==='pergame'?'per-game basis':'season-total basis')+')</h2>'+vals.map(x=>`<div class="catrow"><label>${x.k.toUpperCase()}</label><div class="bar"><span style="width:${x.v==null?0:Math.max(4,Math.min(100,((x.v-(x.k.endsWith('%')?0:0))/(x.k.endsWith('%')?1:(x.k==='pts'?35:x.k==='reb'?15:x.k==='ast'?12:x.k==='threes'?5:4)))*100))}%"></span></div><small>${x.v==null?'—':x.k.endsWith('%')?(x.v*100).toFixed(1)+'%':x.v.toFixed(1)}</small></div>`).join('')+'<p class="sub">Snapshot is a simple mean of supplied projections, not a full team-level category forecast. Accurate team FG%/FT% requires makes and attempts.</p>'}
+function populateTeams(){let sel=$('teamSelect');let old=sel.value;sel.innerHTML=teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');sel.value=old||String(manualTeam);$('teamNamesEditor').innerHTML=teams.map(t=>`<div class="team-name-field"><label for="teamName${t.id}">${t.id===8?'⭐ Your team · Pick 8':`Draft slot ${t.id}`}</label><input id="teamName${t.id}" maxlength="50" value="${attr(t.name)}" aria-label="Team ${t.id} name"></div>`).join('');teams.forEach(t=>{let input=$('teamName'+t.id);input.onchange=()=>{let name=input.value.trim();t.name=name|| (t.id===8?'My Team':`Team ${t.id}`);renderBoard();populateTeams();$('teamSelect').value=String(manualTeam);saveState()}})}
+function renderTeamNamesEditor(){/* populated by populateTeams() */}
+function fmt(v){return v==null?'—':Number(v).toFixed(1)}function fmtPct(v,m,a){if(m!=null&&a>0)return (m/a*100).toFixed(1)+'%';if(v==null)return '—';return (v<=1?v*100:v).toFixed(1)+'%'}function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function attr(s){return esc(s)}function riskTag(r){if(!r)return '<span class="tag">Unknown</span>';let x=String(r).toLowerCase();let cl=x.includes('high')||x.includes('out')||x.includes('injur')?'red':x.includes('med')||x.includes('question')||x.includes('day')?'yellow':'green';return `<span class="tag ${cl}">${esc(r)}</span>`}
+$('importBtn').onclick=()=>$('csvFile').click();$('csvFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{importCSV(await f.text());}catch(err){alert(err.message)}e.target.value=''};
+$('templateBtn').onclick=()=>{let csv='Player,Team,Pos,Status,Rank,GP,MIN,FG%,FT%,3PM,PTS,REB,AST,STL,BLK,FGM,FGA,FTM,FTA,Risk,Sleeper,Notes\n';let blob=new Blob([csv],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='nba_projection_template.csv';a.click();URL.revokeObjectURL(a.href)};
+$('exportBtn').onclick=()=>{let blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),players,picks,currentPick,scoreBasis:$('scoreBasis').value,teams:teams.map(t=>({id:t.id,name:t.name}))},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='nba_draft_backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('importBackupBtn').onclick=()=>$('backupFile').click();
+$('backupFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let data=JSON.parse(await f.text());if(!Array.isArray(data.players)||!Array.isArray(data.picks))throw Error('This does not look like a valid NBA draft backup.');players=data.players;picks=data.picks;currentPick=Math.max(1,Math.min(180,Number(data.currentPick)||8));if(data.scoreBasis)$('scoreBasis').value=data.scoreBasis;for(let saved of (data.teams||[])){let t=teams.find(x=>x.id===Number(saved.id));if(t&&saved.name)t.name=String(saved.name).slice(0,50)}picks=picks.filter(p=>Number(p.overall)>=1&&Number(p.overall)<=180&&Number(p.team)>=1&&Number(p.team)<=12);picks.sort((a,b)=>a.overall-b.overall);recalc();render();$('statusPill').textContent=`Backup restored · ${players.length} players`;}catch(err){alert('Could not restore backup: '+err.message)}e.target.value=''};
+$('undoBtn').onclick=undo;$('resetBtn').onclick=()=>{if(confirm('Clear all drafted picks? Imported player projections will remain.')){picks=[];currentPick=8;recalc();render()}};
+$('search').oninput=renderPlayers;$('sortBy').onchange=renderPlayers;$('posFilter').onchange=renderPlayers;$('scoreBasis').onchange=()=>{render();};
+$('teamSelect').onchange=e=>manualTeam=Number(e.target.value);$('manualPickBtn').onclick=recordManualPick;$('manualPlayer').addEventListener('keydown',e=>{if(e.key==='Enter')recordManualPick()});$('jumpBtn').onclick=()=>{let n=Number($('pickSelect').value);if(n<1||n>180)return alert('Pick must be between 1 and 180.');currentPick=n;render()};
+if(loadState()){$('statusPill').textContent=`Restored ${players.length} projections from this browser`;render()}else render();
+</script>
+</body></html>
