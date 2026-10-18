@@ -8,11 +8,14 @@ A static GitHub Pages app for a 12-team, 8-category head-to-head NBA fantasy sna
 - Draft board, manual pick tracking, undo/reset, and JSON backup/restore.
 - 5,000-run ADP-based mock draft simulator with sortable availability and pick-pair tables.
 - Roster-aware category map, position eligibility counts, next-pick path, and category context on advisor cards.
+- League Loom configuration snapshot for BALL DONT LIE: league identity, 8-category scoring, snake format, team list, roster slots, and your team identity.
 - Optional email-link sign-in and Supabase cloud sync for projections, ADP, team names, settings, and draft picks.
 
 ## Run it
 
 The app is static: open `index.html` locally or publish the repository with GitHub Pages. No build step is required. Import your own current-season projection and ADP files; the app does not connect to ESPN's live draft room.
+
+The League Loom details currently embedded in `index.html` are a snapshot retrieved on 2026-10-18, not a live League Loom API connection from GitHub Pages. If league settings change, refresh that configuration snapshot. The team list is shown separately from draft slots because ESPN team IDs do not identify snake-draft positions; the existing pick-8 assumption is retained.
 
 ## Cloud storage
 
