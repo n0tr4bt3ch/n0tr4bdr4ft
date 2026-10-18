@@ -324,10 +324,11 @@ async function initCloudSync(){
   authSession=sessionNow;setCloudUi();
   if(event==='SIGNED_OUT'){cloudReady=false;cloudMessage('Signed out. Data still remains in this browser.')}
   if(event==='SIGNED_IN'){
-   setTimeout(async()=>{
-    try{const row=await fetchCloudState();if(row){await loadCloudState(true)}else{cloudReady=true;await saveCloudState(false);cloudMessage('Signed in. Uploaded this device’s current data as the first cloud save.')}}
-    catch(e){cloudReady=false;cloudMessage('Sign-in succeeded, but cloud sync failed: '+e.message)}
-   },0);
+   // Do not automatically replace browser state on every SIGNED_IN event.
+   // Supabase may emit SIGNED_IN again when a tab regains focus or refreshes a session.
+   // Keep cloud writes paused until the user explicitly chooses Load or Save.
+   cloudReady=false;
+   cloudMessage('Signed in. Choose “Load cloud data” to restore your cloud draft, or “Save to cloud” to upload this browser’s current draft.');
   }
  });
 }
