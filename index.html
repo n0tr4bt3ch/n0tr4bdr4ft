@@ -428,7 +428,7 @@ function optimizerCompare(a,b){
 }
 function runPuntOptimizer(){
  if(!players.length){alert('Import your 2026–27 projections first.');return}
- if(players.length<40){alert('Import a fuller player pool (at least 40 players) for a meaningful strategy comparison.');return}
+ if(players.length<180){alert('Import at least 180 projected players so the model can construct complete 15-player rosters for all 12 teams.');return}
  const btn=$('runOptimizerBtn');btn.disabled=true;$('optimizerStatus').textContent='Simulating…';$('optimizerResults').innerHTML='<div class="notice">Running strategy simulations. This may take a few seconds.</div>';
  setTimeout(()=>{
   try{
